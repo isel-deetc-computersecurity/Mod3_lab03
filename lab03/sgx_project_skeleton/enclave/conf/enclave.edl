@@ -1,0 +1,20 @@
+/* Enclave.edl - Top EDL file. */
+
+enclave {
+
+    untrusted {
+       
+    };
+
+
+    trusted {
+         /*
+          Para que o SGX saiba o tamanho do buffer a ser copiado.
+          O valor do size corresponde aos  bytes que serão gerado.
+        */
+        
+        public void ecall_get_rand( int size, [out, size=size] unsigned char* buf);
+        public int ecall_get_size();
+
+    };
+};
