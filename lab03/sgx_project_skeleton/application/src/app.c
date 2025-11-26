@@ -25,55 +25,90 @@ int SGX_CDECL main( int argc, char *argv[] )
 
         return -1;
     }
-
     ret = SGX_ERROR_UNEXPECTED;
     int ecall_return = 0;
+    uint32_t nbytes;
+
+    //Chamada ecall para o mundo seguro para buscar número de bytes a ser lido do disco
+    ret = ecall_get_size(global_eid, &ecall_return);
+    if ( ret != SGX_SUCCESS){
+        print_error_message(ret);
+
+        return -1;
+    }
+    else if (ecall_return == (int)0xFFFFFFFF){
+        printf("Erro ao calcular o número de bytes\n");
+        return -1;
+    }
+    nbytes = (uint32_t)ecall_return;    // O valor retornado é o tamanho do sealed_data
+    unsigned char * sealed_data = (unsigned char*)malloc(nbytes);
+    unsigned char * new_prime_sealed = (unsigned char*)malloc(nbytes);
     
-    //variáveis principais do problemaS
-    int buf_size = 4; //tamanho em bytes do valor a ser gerado 
-    unsigned char buf[buf_size];    // Buffer para buf_size bytes aleatório
-    int p = 0;
-    int n = 0;
+    // nbytes é o tamanho do buffer (sealed_data_t)
+    int control = load_prime((int *)sealed_data, nbytes);
 
-    int count = 0;
-
-    do{
-        ret = ecall_get_rand(global_eid, buf_size, buf);
-        if( ret != SGX_SUCCESS){
+    //printf("Primeiro Control: %d\n", control);
+    if (control == 1){
+        // Ficheiro não existe. Será gerado um novo primo sem comparação.
+        printf("Ficheiro %s de chave não encontrado. Gerando novo primo selado...\n", PRIME_FILENAME);
+        ret = ecall_get_rand_prime_sealed(global_eid, &ecall_return, (int)nbytes,new_prime_sealed);
+        if ( ret != SGX_SUCCESS){
             print_error_message(ret);
             return -1;
         }
+    }
+    else{
+        // Ficheiro existe. Descelar, gerar e selar.
+        printf("Ficheiro %s encontrado Descelando...\n", PRIME_FILENAME);
+        ret = ecall_get_sealed_data(global_eid,&ecall_return,(int)nbytes,sealed_data,new_prime_sealed);
+        if ( ret != SGX_SUCCESS){
+            print_error_message(ret);
+            return -1;
+        }
+        if(ecall_return == -1){
+            printf("Erro SGX na descelagem de dados dentro da enclave\n");
+            return -1;
+        }
+        else if(ecall_return == -2){
+            printf("Erro SGX na Selagem dos dados dentro da enclave\n");
+        }
+    }
 
-        //* Converter 4 bytes para um inteiro de 32 bits (int) */
-        n = (int)buf[0] | (int)buf[1] << 8 | (int)buf[2] << 16 | (int)buf[3] << 24;
-        p = is_prime(n);
+    control = save_prime((int *) new_prime_sealed, nbytes);
 
-        printf("%d is%s a prime number.\n", n, (p == 0) ? "n't" : "" );
-        count +=1;
-    } while( n != 1 && count <= 10);
+    if (control == 1){
+        printf("Erro ao salvar o new Prime\n");
 
+        return -1;
+    }
+
+    printf("Ficheiro gravado com Sucesso no Disco!!\n");
     /* Destroy the enclave */
+    free(sealed_data);
+    free(new_prime_sealed);
 	sgx_destroy_enclave( global_eid );
 
     return ecall_return;
 }
-int is_prime( int n ) {
 
-	int p = 1;
+int load_prime( int* prime, const size_t prime_size ) {
 
-	if ( n <= 1 ) {
-		p = 0;
-	} else if ( n != 2 && (n % 2) == 0) {
-		p = 0;
-	} else {
-		for ( int i = 2; i <= sqrt(n); ++i ) {
-	 		// If n is divisible by any number between 2 and n/2, it is not prime
-			if ( n % i == 0 ) {
-				p = 0;
-				break;
-			}
-		}
+	FILE *fp = fopen( PRIME_FILENAME, "r" );
+	if ( fp == NULL ){
+		return 1;
 	}
+	fread( prime, prime_size, 1, fp );
+	fclose( fp );
+	return 0;
+}
 
-    return p;
+int save_prime( const int* prime, const size_t prime_size ) {
+
+	FILE *fp = fopen( PRIME_FILENAME, "w");
+	if ( fp == NULL ){
+		return 1;
+	}
+	fwrite( prime, prime_size, 1, fp);
+	fclose( fp );
+	return 0;
 }

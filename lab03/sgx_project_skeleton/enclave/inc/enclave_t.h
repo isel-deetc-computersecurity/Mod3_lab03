@@ -15,7 +15,9 @@
 extern "C" {
 #endif
 
-void ecall_get_rand(int size, unsigned char* buf);
+int ecall_get_rand_prime_sealed(int size, unsigned char* prime_sealed);
+int ecall_get_sealed_data(int size, unsigned char* old_prime_sealed, unsigned char* new_prime_sealed);
+int ecall_get_size(void);
 
 
 #ifdef __cplusplus

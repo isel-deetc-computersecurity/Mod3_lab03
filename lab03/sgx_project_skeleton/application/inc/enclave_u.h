@@ -17,7 +17,9 @@ extern "C" {
 #endif
 
 
-sgx_status_t ecall_get_rand(sgx_enclave_id_t eid, int size, unsigned char* buf);
+sgx_status_t ecall_get_rand_prime_sealed(sgx_enclave_id_t eid, int* retval, int size, unsigned char* prime_sealed);
+sgx_status_t ecall_get_sealed_data(sgx_enclave_id_t eid, int* retval, int size, unsigned char* old_prime_sealed, unsigned char* new_prime_sealed);
+sgx_status_t ecall_get_size(sgx_enclave_id_t eid, int* retval);
 
 #ifdef __cplusplus
 }

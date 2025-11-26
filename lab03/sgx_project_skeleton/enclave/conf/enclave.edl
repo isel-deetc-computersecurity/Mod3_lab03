@@ -13,8 +13,10 @@ enclave {
           O valor do size corresponde aos  bytes que serão gerado.
         */
         
-        public void ecall_get_rand( int size, [out, size=size] unsigned char* buf);
+        public int ecall_get_rand_prime_sealed(int size,[out,size = size] unsigned char* prime_sealed);
+        public int ecall_get_sealed_data( int size, [in,size = size] unsigned char * old_prime_sealed, [out,size = size] unsigned char *new_prime_sealed);
         public int ecall_get_size();
+        
 
     };
 };
